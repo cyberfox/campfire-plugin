@@ -1,12 +1,20 @@
 package hudson.plugins.campfire;
 
-import org.apache.commons.httpclient.Credentials;
-import org.apache.commons.httpclient.HttpClient;
-import org.apache.commons.httpclient.UsernamePasswordCredentials;
-import org.apache.commons.httpclient.auth.AuthScope;
-import org.apache.commons.httpclient.methods.GetMethod;
-import org.apache.commons.httpclient.methods.PostMethod;
-import org.apache.commons.httpclient.methods.StringRequestEntity;
+import org.apache.http.HttpHost;
+import org.apache.http.HttpResponse;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.Credentials;
+import org.apache.http.client.CredentialsProvider;
+import org.apache.http.client.HttpClient;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.impl.client.LaxRedirectStrategy;
+import org.apache.http.util.EntityUtils;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
@@ -38,16 +46,19 @@ public class Campfire {
     }
 
     protected HttpClient getClient() {
-      HttpClient client = new HttpClient();
-      Credentials defaultcreds = new UsernamePasswordCredentials(this.token, "x");
-      client.getState().setCredentials(new AuthScope(getHost(), -1, AuthScope.ANY_REALM), defaultcreds);
-      client.getParams().setAuthenticationPreemptive(true);
-      client.getParams().setParameter("http.useragent", "Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_6_4; en-us) AppleWebKit/533.16 (KHTML, like Gecko) Version/5.0 Safari/533.16");
-      ProxyConfiguration proxy = Hudson.getInstance().proxy;
-      if (proxy != null) {
-          client.getHostConfiguration().setProxy(proxy.name, proxy.port);
-      }
-      return client;
+        Credentials defaultcreds = new UsernamePasswordCredentials(this.token, "x");
+        CredentialsProvider cp = new BasicCredentialsProvider();
+        cp.setCredentials(new AuthScope(getHost(), -1, AuthScope.ANY_REALM), defaultcreds);
+        HttpClientBuilder clientBuilder = HttpClients.custom()
+                .setDefaultCredentialsProvider(cp)
+                .setRedirectStrategy(new LaxRedirectStrategy());
+
+        ProxyConfiguration proxy = Hudson.getInstance().proxy;
+        if (proxy != null) {
+            clientBuilder.setProxy(new HttpHost(proxy.name, proxy.port));
+        }
+
+        return clientBuilder.build();
     }
 
     protected String getHost() {
@@ -68,11 +79,13 @@ public class Campfire {
     }
 
     public int post(String url, String body) {
-        PostMethod post = new PostMethod(getProtocol() + getHost() + "/" + url);
-        post.setRequestHeader("Content-Type", "application/xml");
+        HttpPost post = new HttpPost(getProtocol() + getHost() + "/" + url);
+        post.setHeader("Content-Type", "application/xml");
+        post.setHeader("User-Agent", "Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_6_4; en-us) AppleWebKit/533.16 (KHTML, like Gecko) Version/5.0 Safari/533.16");
         try {
-            post.setRequestEntity(new StringRequestEntity(body, "application/xml", "UTF8"));
-            return getClient().executeMethod(post);
+            post.setEntity(new StringEntity(body, "application/xml", "UTF8"));
+            HttpResponse resp = getClient().execute(post);
+            return resp.getStatusLine().getStatusCode();
         } catch (IOException e) {
             throw new RuntimeException(e);
         } finally {
@@ -81,13 +94,13 @@ public class Campfire {
     }
 
     public String get(String url) {
-        GetMethod get = new GetMethod(getProtocol() + getHost() + "/" + url);
-        get.setFollowRedirects(true);
-        get.setRequestHeader("Content-Type", "application/xml");
+        HttpGet get = new HttpGet(getProtocol() + getHost() + "/" + url);
+        get.setHeader("Content-Type", "application/xml");
+        get.setHeader("User-Agent", "Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_6_4; en-us) AppleWebKit/533.16 (KHTML, like Gecko) Version/5.0 Safari/533.16");
         try {
-            getClient().executeMethod(get);
-            verify(get.getStatusCode());
-            return get.getResponseBodyAsString();
+            HttpResponse response = getClient().execute(get);
+            verify(response.getStatusLine().getStatusCode());
+            return EntityUtils.toString(response.getEntity());
         } catch (IOException e) {
             throw new RuntimeException(e);
         } finally {
