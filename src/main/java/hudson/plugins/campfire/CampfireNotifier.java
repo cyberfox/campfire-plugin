@@ -3,11 +3,15 @@ package hudson.plugins.campfire;
 import hudson.Extension;
 import hudson.Launcher;
 import hudson.model.AbstractBuild;
+import hudson.model.ParametersAction;
+import hudson.model.Action;
 import hudson.model.BuildListener;
+import hudson.model.ParameterValue;
 import hudson.model.Result;
 import hudson.scm.ChangeLogSet;
 import hudson.tasks.BuildStepMonitor;
 import hudson.tasks.Notifier;
+import hudson.util.VariableResolver;
 
 import org.kohsuke.stapler.DataBoundConstructor;
 
@@ -17,6 +21,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.HashMap;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.Map;
@@ -181,6 +186,17 @@ public class CampfireNotifier extends Notifier {
         context.put("PROJECT_DISPLAY_NAME", build.getProject().getDisplayName());
         context.put("PROJECT_FULL_NAME", build.getProject().getFullName());
         context.put("PROJECT_FULL_DISPLAY_NAME", build.getProject().getFullDisplayName());
+        ParametersAction params = build.getAction(hudson.model.ParametersAction.class);
+        
+        VariableResolver<String> vr = build.getBuildVariableResolver();
+
+        if (params!=null) {
+        	for (ParameterValue p: params) {
+        		if (p instanceof hudson.model.StringParameterValue) {
+        			context.put(p.getName(), vr.resolve(p.getName()).toString());
+        		}
+        	}
+        }
 
         context.put("BUILD_DISPLAY_NAME", build.getDisplayName());
 
