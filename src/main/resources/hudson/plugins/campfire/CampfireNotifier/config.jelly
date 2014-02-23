@@ -16,5 +16,8 @@
       help="${rootURL}/plugin/campfire/help-projectConfig-notificationTemplate.html">
       <f:textbox name="campfireNotificationTemplate" value="${instance.getConfiguredNotificationTemplate()}" />
     </f:entry>
+    <f:entry title="Sound Name" description="Optional. Override the sound name" help="${rootURL}/plugin/campfire/help-projectConfig-soundname.html">
+    	<f:textbox name="campfireSoundname" value="${instance.getConfiguredSoundName()}" />
+    </f:entry>
 
 </j:jelly>

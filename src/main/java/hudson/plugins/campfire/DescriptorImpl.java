@@ -11,6 +11,7 @@ import java.util.logging.Logger;
 
 public class DescriptorImpl extends BuildStepDescriptor<Publisher> {
     private static final String DEFAULT_NOTIFICATION_TEMPLATE = "%PROJECT_NAME% %BUILD_DISPLAY_NAME% (%CHANGES%): %SMART_RESULT% (%BUILD_URL%)";
+    private static final String DEFAULT_SOUND = "rimshot";
 
     private boolean enabled = false;
     private String subdomain;
@@ -22,8 +23,9 @@ public class DescriptorImpl extends BuildStepDescriptor<Publisher> {
     private boolean smartNotify;
     private boolean sound;
     private static final Logger LOGGER = Logger.getLogger(DescriptorImpl.class.getName());
+    private String soundname = DEFAULT_SOUND;
 
-    public DescriptorImpl() {
+	public DescriptorImpl() {
         super(CampfireNotifier.class);
         load();
     }
@@ -68,6 +70,14 @@ public class DescriptorImpl extends BuildStepDescriptor<Publisher> {
         return sound;
     }
 
+    public String getSoundname() {
+		return soundname;
+	}
+
+	public void setSoundname(String soundname) {
+		this.soundname = soundname;
+	}
+    
     public boolean isApplicable(Class<? extends AbstractProject> aClass) {
         return true;
     }
@@ -81,6 +91,7 @@ public class DescriptorImpl extends BuildStepDescriptor<Publisher> {
         String projectToken = req.getParameter("campfireToken");
         String projectRoom = req.getParameter("campfireRoom");
         String projectNotificationTemplate = req.getParameter("campfireNotificationTemplate");
+        String projectSoundname = req.getParameter("campfireSoundname");
         if ( projectRoom == null || projectRoom.trim().length() == 0 ) {
             projectRoom = room;
         }
@@ -93,9 +104,12 @@ public class DescriptorImpl extends BuildStepDescriptor<Publisher> {
         if ( projectNotificationTemplate == null || projectNotificationTemplate.trim().length() == 0 ) {
             projectNotificationTemplate = notificationTemplate;
         }
+        if ( projectSoundname == null || projectSoundname.trim().length() == 0 ) {
+        	projectSoundname = soundname;
+        }
         try {
             return new CampfireNotifier(projectSubdomain, projectToken, projectRoom, hudsonUrl,
-                projectNotificationTemplate, ssl, smartNotify, sound);
+                projectNotificationTemplate, ssl, smartNotify, sound, projectSoundname);
         } catch (Exception e) {
             String message = "Failed to initialize campfire notifier - check your campfire notifier configuration settings: " + e.getMessage();
             LOGGER.log(Level.WARNING, message, e);
@@ -119,8 +133,14 @@ public class DescriptorImpl extends BuildStepDescriptor<Publisher> {
         ssl = req.getParameter("campfireSsl") != null;
         smartNotify = req.getParameter("campfireSmartNotify") != null;
         sound = req.getParameter("campfireSound") != null;
+        soundname = req.getParameter("campfireSoundname");
+        
+        if (soundname == null || soundname.trim().length() == 0) {
+        	soundname = DEFAULT_SOUND;
+        }
+        
         try {
-            new CampfireNotifier(subdomain, token, room, hudsonUrl, notificationTemplate, ssl, smartNotify, sound);
+            new CampfireNotifier(subdomain, token, room, hudsonUrl, notificationTemplate, ssl, smartNotify, sound, soundname);
         } catch (Exception e) {
             String message = "Failed to initialize campfire notifier - check your global campfire notifier configuration settings: " + e.getMessage();
             LOGGER.log(Level.WARNING, message, e);
